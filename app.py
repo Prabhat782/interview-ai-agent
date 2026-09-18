@@ -20,14 +20,45 @@ page_bg_img = """
 [data-testid="stHeader"] {
     background: rgba(0,0,0,0);
 }
-[data-testid="stSidebar"] {
-    background: rgba(255,255,255,0.85);
-}
 </style>
 """
 st.markdown(page_bg_img, unsafe_allow_html=True)
 
-# --- Sidebar ---
+# --- Sidebar Theme Toggle ---
+theme_choice = st.sidebar.radio("Theme:", ["Dark", "Light"])
+
+if theme_choice == "Dark":
+    sidebar_bg = """
+    <style>
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1e1e1e, #2c2c2c);
+        color: #f0f0f0;
+    }
+    [data-testid="stSidebar"] .stSelectbox label, 
+    [data-testid="stSidebar"] .stSlider label, 
+    [data-testid="stSidebar"] .stButton button {
+        color: #f0f0f0 !important;
+    }
+    </style>
+    """
+else:
+    sidebar_bg = """
+    <style>
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #ffffff, #f5f5f5);
+        color: #333333;
+    }
+    [data-testid="stSidebar"] .stSelectbox label, 
+    [data-testid="stSidebar"] .stSlider label, 
+    [data-testid="stSidebar"] .stButton button {
+        color: #333333 !important;
+    }
+    </style>
+    """
+
+st.markdown(sidebar_bg, unsafe_allow_html=True)
+
+# --- Sidebar Controls ---
 st.sidebar.title("⚙️ Settings")
 role = st.sidebar.selectbox("Select Role:", ["Software Engineer", "Data Analyst", "Web Developer", "AI Researcher"])
 target = st.sidebar.slider("Set target average score:", 1, 10, 8)
@@ -178,21 +209,3 @@ if st.sidebar.button("Export to CSV"):
             weekly_scores = df_time.groupby("Week")["Score"].mean().reset_index()
             st.line_chart(weekly_scores.set_index("Week")["Score"])
 
-            st.subheader("Role-wise Weekly Tracker")
-            weekly_role_scores = df_time.groupby(["Week", "Role"])["Score"].mean().reset_index()
-            fig2 = px.line(weekly_role_scores, x="Week", y="Score", color="Role", markers=True,
-                           title="Weekly Average Scores by Role")
-            st.plotly_chart(fig2)
-
-            st.subheader("Weekly Role Trends")
-            for role_name in weekly_role_scores["Role"].unique():
-                role_data = weekly_role_scores[weekly_role_scores["Role"] == role_name]
-                if len(role_data) > 1:
-                    if role_data["Score"].iloc[-1] > role_data["Score"].iloc[0]:
-                        st.success(f"{role_name}: 📈 Improving compared to earlier weeks.")
-                    elif role_data["Score"].iloc[-1] < role_data["Score"].iloc[0]:
-                        st.warning(f"{role_name}: 📉 Scores dipped — focus on weak areas.")
-                    else:
-                        st.info(f"{role_name}: ➖ Steady performance — aim higher.")
-    else:
-        st.write("No data to export yet.")
