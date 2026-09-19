@@ -9,7 +9,8 @@ import os
 
 headers = {"Authorization": f"Bearer " + os.environ["HF_API_TOKEN"]}
 
-API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf"
+API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+
 
 try:
     test = requests.get("https://api-inference.huggingface.co", headers=headers)
