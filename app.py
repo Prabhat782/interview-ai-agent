@@ -99,15 +99,37 @@ st.write(question)
 
 user_input = st.text_area("Your Answer:")
 
-# --- SQLite setup ---
+# --- SQLite setup (FIXED: 5 columns including timestamp) ---
 conn = sqlite3.connect("interview.db")
 c = conn.cursor()
-c.execute("CREATE TABLE IF NOT EXISTS history (role TEXT, question TEXT, answer TEXT, feedback TEXT, timestamp TEXT)")
+c.execute("""
+CREATE TABLE IF NOT EXISTS history (
+    role TEXT,
+    question TEXT,
+    answer TEXT,
+    feedback TEXT,
+    timestamp TEXT
+)
+""")
 
 def save_response(role, question, answer, feedback):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    c.execute("INSERT INTO history VALUES (?, ?, ?, ?, ?)", (role, question, answer, feedback, ts))
+    c.execute("INSERT INTO history (role, question, answer, feedback, timestamp) VALUES (?, ?, ?, ?, ?)",
+              (role, question, answer, feedback, ts))
     conn.commit()
+
+    # --- SQLite setup ---
+conn = sqlite3.connect("interview.db")
+c = conn.cursor()
+
+# Ensure timestamp column exists without dropping old data
+try:
+    c.execute("ALTER TABLE history ADD COLUMN timestamp TEXT")
+except sqlite3.OperationalError:
+    # Column already exists, ignore
+    pass
+
+
 
 # --- Submit button ---
 if st.button("Submit Answer"):
@@ -121,6 +143,14 @@ if st.button("Submit Answer"):
         st.session_state.q_index += 1
     else:
         st.info("Interview complete for this role!")
+
+        # --- Next Question button ---
+if st.button("Next Question"):
+    if st.session_state.q_index < len(questions[role]) - 1:
+        st.session_state.q_index += 1
+    else:
+        st.info("Interview complete for this role!")
+
 
 # --- Export & Analytics ---
 if st.sidebar.button("Export to CSV"):
@@ -206,6 +236,4 @@ if st.sidebar.button("Export to CSV"):
         with tab5:
             st.subheader("Weekly Improvement Tracker")
             df_time["Week"] = df_time["Timestamp"].dt.to_period("W").apply(lambda r: r.start_time)
-            weekly_scores = df_time.groupby("Week")["Score"].mean().reset_index()
-            st.line_chart(weekly_scores.set_index("Week")["Score"])
-
+            weekly_scores = df_time.groupby("Week")
