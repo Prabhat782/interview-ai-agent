@@ -7,8 +7,16 @@ import plotly.express as px
 import requests
 import os
 
-API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf"
 headers = {"Authorization": f"Bearer " + os.environ["HF_API_TOKEN"]}
+
+API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf"
+
+try:
+    test = requests.get("https://api-inference.huggingface.co", headers=headers)
+    st.sidebar.write("HF API status:", test.status_code)
+except Exception as e:
+    st.sidebar.error(f"Connection failed: {e}")
+
 
 
 st.set_page_config(page_title="Interview AI Agent", layout="wide")
