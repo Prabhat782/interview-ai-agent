@@ -1,14 +1,14 @@
 import streamlit as st
-import subprocess
 import sqlite3
 import pandas as pd
 import re
 from datetime import datetime
 import plotly.express as px
+import requests
 
 st.set_page_config(page_title="Interview AI Agent", layout="wide")
 
-# --- Background Image (Free Unsplash Gradient) ---
+# --- Background Image ---
 page_bg_img = """
 <style>
 [data-testid="stAppViewContainer"] {
@@ -26,7 +26,6 @@ st.markdown(page_bg_img, unsafe_allow_html=True)
 
 # --- Sidebar Theme Toggle ---
 theme_choice = st.sidebar.radio("Theme:", ["Dark", "Light"])
-
 if theme_choice == "Dark":
     sidebar_bg = """
     <style>
@@ -55,7 +54,6 @@ else:
     }
     </style>
     """
-
 st.markdown(sidebar_bg, unsafe_allow_html=True)
 
 # --- Sidebar Controls ---
@@ -99,7 +97,7 @@ st.write(question)
 
 user_input = st.text_area("Your Answer:")
 
-# --- SQLite setup (FIXED: 5 columns including timestamp) ---
+# --- SQLite setup ---
 conn = sqlite3.connect("interview.db")
 c = conn.cursor()
 c.execute("""
@@ -111,6 +109,10 @@ CREATE TABLE IF NOT EXISTS history (
     timestamp TEXT
 )
 """)
+try:
+    c.execute("ALTER TABLE history ADD COLUMN timestamp TEXT")
+except sqlite3.OperationalError:
+    pass
 
 def save_response(role, question, answer, feedback):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -118,39 +120,34 @@ def save_response(role, question, answer, feedback):
               (role, question, answer, feedback, ts))
     conn.commit()
 
-    # --- SQLite setup ---
-conn = sqlite3.connect("interview.db")
-c = conn.cursor()
+# --- Hugging Face API setup ---
+API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf"
+headers = {"Authorization": f"Bearer YOUR_HF_API_TOKEN"}  # replace with your token
 
-# Ensure timestamp column exists without dropping old data
-try:
-    c.execute("ALTER TABLE history ADD COLUMN timestamp TEXT")
-except sqlite3.OperationalError:
-    # Column already exists, ignore
-    pass
-
-
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.json()
 
 # --- Submit button ---
 if st.button("Submit Answer"):
     prompt = f"Evaluate this {role} interview answer and give a score (1-10) with feedback: {user_input}"
-    result = subprocess.run(["ollama", "run", "llama3", prompt], capture_output=True, text=True)
-    feedback = result.stdout.strip()
+    output = query({"inputs": prompt})
+    feedback = output[0]["generated_text"] if isinstance(output, list) else str(output)
     st.success("✅ Feedback & Score:")
     st.write(feedback)
     save_response(role, question, user_input, feedback)
+
     if st.session_state.q_index < len(questions[role]) - 1:
         st.session_state.q_index += 1
     else:
         st.info("Interview complete for this role!")
 
-        # --- Next Question button ---
+# --- Next Question button ---
 if st.button("Next Question"):
     if st.session_state.q_index < len(questions[role]) - 1:
         st.session_state.q_index += 1
     else:
         st.info("Interview complete for this role!")
-
 
 # --- Export & Analytics ---
 if st.sidebar.button("Export to CSV"):
@@ -220,20 +217,16 @@ if st.sidebar.button("Export to CSV"):
                     if score < target:
                         below_target_roles.append(role_name)
             if below_target_roles:
-                st.write("💡 Personalized Tips")
-                for r in below_target_roles:
-                    if r == "Software Engineer":
-                        st.write("- Practice explaining algorithms clearly and mock coding problems.")
-                    elif r == "Data Analyst":
-                        st.write("- Strengthen SQL queries and handling missing data with real datasets.")
-                    elif r == "Web Developer":
-                        st.write("- Revise responsive design and optimize performance with Lighthouse.")
-                    elif r == "AI Researcher":
-                        st.write("- Read recent AI papers and articulate ethical concerns simply.")
-            else:
-                st.success("🎉 All roles are meeting/exceeding your target score!")
+              st.write("💡 Personalized Tips")
+              
+    for r in below_target_roles:
+        if r == "Software Engineer":
+            st.write("- Practice explaining algorithms clearly and mock coding problems.")
+        elif r == "Data Analyst":
+            st.write("- Strengthen SQL queries and handling missing data with real datasets.")
+        elif r == "Web Developer":
+            st.write("- Revise responsive design and optimize performance with Lighthouse.")
+        elif r == "AI Researcher":
+            st.write("- Read recent AI papers and articulate ethical concerns simply.")
 
-        with tab5:
-            st.subheader("Weekly Improvement Tracker")
-            df_time["Week"] = df_time["Timestamp"].dt.to_period("W").apply(lambda r: r.start_time)
-            weekly_scores = df_time.groupby("Week")
+           
