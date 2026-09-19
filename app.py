@@ -5,6 +5,11 @@ import re
 from datetime import datetime
 import plotly.express as px
 import requests
+import os
+
+API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf"
+headers = {"Authorization": f"Bearer " + os.environ["HF_API_TOKEN"]}
+
 
 st.set_page_config(page_title="Interview AI Agent", layout="wide")
 
